@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代码存储器</title>
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/solarized.min.css">
+    <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --sidebar-bg: #e8e8e8;
+            --list-bg: #ffffff;
+            --editor-bg: #ffffff;
+            --border-color: #ccc;
+            --highlight: #007bff;
+            --text-color: #333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+        }
+
+        header {
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar: Directories */
+        .sidebar {
+            width: 250px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 10px;
+            background: #ddd;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tree-view {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .tree-toggle {
+            display: inline-block;
+            width: 16px;
+            text-align: center;
+            cursor: pointer;
+            color: #666;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+        
+        .tree-toggle:hover {
+            color: #333;
+        }
+
+        .tree-item {
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tree-item:hover {
+            background: #d4d4d4;
+        }
+
+        .tree-item.active {
+            background: var(--highlight);
+            color: white;
+        }
+        
+        .tree-item.drag-over {
+            background: #b3d7ff;
+            border: 1px dashed var(--highlight);
+        }
+        
+        .tree-children {
+            margin-left: 20px;
+            border-left: 1px solid #ccc;
+        }
+
+        /* Middle: File List */
+        .file-list-panel {
+            width: 300px;
+            background: var(--list-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background: #f9f9f9;
+        }
+
+        .file-item.active {
+            background: #e6f7ff;
+            border-left: 4px solid var(--highlight);
+        }
+
+        .file-item .title {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .file-item .meta {
+            font-size: 0.8rem;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Right: Editor */
+        .editor-panel {
+            flex: 1;
+            background: var(--editor-bg);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .editor-header {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        
+        textarea {
+            resize: vertical;
+        }
+
+        .editor-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        #code-content {
+            min-height: 300px;
+            flex: 1;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background: #e0e0e0;
+        }
+        
+        .btn-primary { background: var(--highlight); color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn:hover { opacity: 0.9; }
+
+        .hidden { display: none !important; }
+        
+        .context-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .context-menu-item:hover {
+            background: #eee;
+        }
+
+        .CodeMirror {
+            height: 400px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+            align-items: center;
+        }
+
+        .tag-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid transparent;
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            opacity: 0.6;
+            line-height: 1;
+        }
+
+        .tag-remove:hover {
+            opacity: 1;
+        }
+
+        .tag-input-field {
+            border: none !important;
+            outline: none;
+            background: transparent;
+            min-width: 100px;
+            flex: 1;
+            padding: 4px 0 !important;
+        }
+        
+        .tags-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px 8px;
+            background: white;
+            min-height: 36px;
+        }
+        
+        .tags-wrapper:focus-within {
+            border-color: var(--highlight);
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+        }
+
+        /* Resizers */
+        .resizer {
+            width: 5px;
+            cursor: col-resize;
+            background: #e0e0e0;
+            z-index: 10;
+            transition: background 0.2s;
+        }
+        
+        .resizer:hover, .resizer.resizing {
+            background: var(--highlight);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="display:flex; align-items:center; gap: 20px;">
+            <h1>Code Store</h1>
+            <button class="btn" onclick="loadFavorites()">⭐ 我的收藏</button>
+            <button class="btn" onclick="showGithubModal()">🐙 同步到 Github</button>
+            <button class="btn" onclick="showSettingsModal()">⚙️ 设置</button>
+        </div>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索代码、文件名、备注..." style="width: 300px;">
+            <button class="btn btn-primary" onclick="performSearch()">搜索</button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="panel-header">
+                目录结构
+                <button class="btn btn-sm" onclick="showAddDirModal()">+</button>
+            </div>
+            <div id="tree-root" class="tree-view">
+                <!-- Tree items will be injected here -->
+            </div>
+        </div>
+
+        <div class="resizer" id="resizer-sidebar"></div>
+
+        <!-- File List -->
+        <div class="file-list-panel" id="file-list-panel">
+            <div class="panel-header">
+                文件列表
+                <button class="btn btn-sm btn-success" onclick="createNewCode()">+ 新建代码</button>
+            </div>
+            <div id="file-list-container" class="file-list">
+                <!-- File items -->
+            </div>
+        </div>
+
+        <div class="resizer" id="resizer-filelist"></div>
+
+        <!-- Editor -->
+        <div class="editor-panel" id="editor-panel">
+            <div id="empty-state" style="text-align: center; color: #999; margin-top: 100px;">
+                请选择一个文件或新建代码
+            </div>
+            <div id="editor-container" class="hidden">
+                <div class="editor-header">
+                    <input type="hidden" id="edit-id">
+                    <input type="hidden" id="edit-dir-id">
+                    <div style="flex: 1;">
+                        <label>文件名:</label>
+                        <input type="text" id="edit-filename" onchange="detectLanguage()">
+                    </div>
+                    <div style="flex: 1;">
+                        <label>标签:</label>
+                        <div class="tags-wrapper" onclick="document.getElementById('tag-input').focus()">
+                            <div id="tags-list" style="display:contents"></div>
+                            <input type="text" id="tag-input" class="tag-input-field" placeholder="输入标签按回车">
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: flex-end; gap: 10px;">
+                        <span id="save-status" style="font-size: 0.85rem; color: #666; margin-right: 5px; align-self: center;"></span>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="edit-pinned"> 📌 置顶
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="edit-favorite"> ⭐ 收藏
+                        </label>
+                        <button class="btn btn-primary" onclick="saveCode()">保存</button>
+                        <button class="btn btn-danger" onclick="deleteCode()">删除</button>
+                    </div>
+                </div>
+                
+                <div class="editor-content">
+                    <div>
+                        <label>代码内容:</label>
+                        <textarea id="edit-content"></textarea>
+                    </div>
+                    <div>
+                        <label>备注:</label>
+                        <textarea id="edit-note" style="height: 100px;"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals/Context Menus -->
+    <div id="github-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Github 同步配置</h3>
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 15px;">
+                注意：这将把所有代码一次性推送到指定仓库，请谨慎操作。<br>
+                Token 需要 repo 权限。 <a href="https://github.com/settings/tokens/new?scopes=repo&description=CodeStoreSync" target="_blank">点击此处生成 Token</a>
+            </p>
+            <div class="form-group">
+                <label>Personal Access Token (PAT):</label>
+                <input type="password" id="gh-token" placeholder="ghp_...">
+            </div>
+            <div class="form-group">
+                <label>Owner (用户名):</label>
+                <input type="text" id="gh-owner" placeholder="例如: yourname">
+            </div>
+            <div class="form-group">
+                <label>Repo (仓库名):</label>
+                <input type="text" id="gh-repo" placeholder="例如: my-code-snippets">
+            </div>
+            <div class="form-group">
+                <label>Branch (分支):</label>
+                <input type="text" id="gh-branch" value="main">
+            </div>
+            <div class="form-group">
+                <label>Path Prefix (可选路径前缀):</label>
+                <input type="text" id="gh-path" placeholder="例如: src/">
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn" onclick="closeGithubModal()">取消</button>
+                <button class="btn btn-primary" onclick="startGithubSync()">开始同步</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>⚙️ 设置</h3>
+            <div class="form-group">
+                <label>编辑器主题:</label>
+                <select id="setting-theme" style="width: 100%; padding: 8px;">
+                    <option value="monokai">Monokai (默认)</option>
+                    <option value="dracula">Dracula</option>
+                    <option value="eclipse">Eclipse (亮色)</option>
+                    <option value="material">Material</option>
+                    <option value="solarized dark">Solarized Dark</option>
+                    <option value="solarized light">Solarized Light</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>字体大小 (px):</label>
+                <input type="number" id="setting-fontsize" value="14" min="10" max="30">
+            </div>
+            <div class="form-group">
+                <label>字体家族:</label>
+                <select id="setting-fontfamily" style="width: 100%; padding: 8px;">
+                    <option value="'Fira Code', 'Consolas', monospace">Fira Code / Consolas</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                    <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                    <option value="monospace">System Monospace</option>
+                </select>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn" onclick="closeSettingsModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveSettings()">保存应用</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dir-context-menu" class="context-menu hidden">
+        <div class="context-menu-item" onclick="contextAddSubDir()">新建子目录</div>
+        <div class="context-menu-item" onclick="contextRenameDir()">重命名</div>
+        <div class="context-menu-item" onclick="contextDeleteDir()">删除目录</div>
+    </div>
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/shell/shell.min.js"></script>
+
+    <script>
+        // State
+        let directories = [];
+        let currentDirId = null;
+        let currentCodeId = null;
+        let contextTargetDirId = null;
+        let cmEditor = null;
+        let currentTags = [];
+        let autoSaveTimer = null;
+        let collapsedDirs = new Set(); // Set of collapsed directory IDs
+
+        const TAG_COLORS = [
+            { bg: '#e1ecf4', text: '#2c5282', border: '#bee3f8' }, // Blue
+            { bg: '#f0fff4', text: '#276749', border: '#c6f6d5' }, // Green
+            { bg: '#fff5f5', text: '#9b2c2c', border: '#fed7d7' }, // Red
+            { bg: '#fffaf0', text: '#9c4221', border: '#feebc8' }, // Orange
+            { bg: '#faf5ff', text: '#553c9a', border: '#e9d8fd' }, // Purple
+            { bg: '#f7fafc', text: '#4a5568', border: '#e2e8f0' }, // Gray
+            { bg: '#fffff0', text: '#975a16', border: '#fefcbf' }, // Yellow
+        ];
+
+        function getTagColor(name) {
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const index = Math.abs(hash) % TAG_COLORS.length;
+            return TAG_COLORS[index];
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDirectories();
+            initResizers();
+            
+            // Initialize CodeMirror
+            cmEditor = CodeMirror.fromTextArea(document.getElementById('edit-content'), {
+                lineNumbers: true,
+                mode: "javascript",
+                theme: "monokai",
+                lineWrapping: true
+            });
+            
+            // Auto save on change
+            cmEditor.on('change', (cm, change) => {
+                if (change.origin === 'setValue') return; // Ignore programmatic changes
+                triggerAutoSave();
+            });
+            
+            // Also trigger on other inputs
+            ['edit-filename', 'edit-note', 'edit-pinned', 'edit-favorite'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                   el.addEventListener('input', triggerAutoSave);
+                   el.addEventListener('change', triggerAutoSave);
+                }
+            });
+            
+            // Load and apply settings
+            loadSettings();
+
+            // Search input enter key
+            document.getElementById('search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') performSearch();
+            });
+
+            // Tag input enter key
+            document.getElementById('tag-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTagFromInput();
+                } else if (e.key === 'Backspace' && !e.target.value && currentTags.length > 0) {
+                    // Remove last tag if input is empty
+                    removeTag(currentTags.length - 1);
+                }
+            });
+
+            // Hide context menu on click elsewhere
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.context-menu')) {
+                    document.getElementById('dir-context-menu').classList.add('hidden');
+                }
+            });
+        });
+
+        function addTagFromInput() {
+            const input = document.getElementById('tag-input');
+            const val = input.value.trim();
+            if (val) {
+                // Split by comma just in case user pasted
+                const newTags = val.split(/[,，]/).map(t => t.trim()).filter(t => t);
+                newTags.forEach(tag => {
+                    if (!currentTags.includes(tag)) {
+                        currentTags.push(tag);
+                    }
+                });
+                input.value = '';
+                renderTags();
+            }
+        }
+
+        function removeTag(index) {
+            currentTags.splice(index, 1);
+            renderTags();
+        }
+
+        function renderTags() {
+            const container = document.getElementById('tags-list');
+            container.innerHTML = '';
+            
+            currentTags.forEach((tag, index) => {
+                const color = getTagColor(tag);
+                const badge = document.createElement('div');
+                badge.className = 'tag-badge';
+                badge.style.backgroundColor = color.bg;
+                badge.style.color = color.text;
+                badge.style.borderColor = color.border;
+                
+                badge.innerHTML = `
+                    ${tag}
+                    <span class="tag-remove" onclick="event.stopPropagation(); removeTag(${index})">×</span>
+                `;
+                container.appendChild(badge);
+            });
+        }
+
+        // --- Resizer Logic ---
+        function initResizers() {
+            setupResizer('resizer-sidebar', 'sidebar');
+            setupResizer('resizer-filelist', 'file-list-panel');
+        }
+
+        // --- Auto Save Logic ---
+        function triggerAutoSave() {
+            // Only auto save if we are editing an existing code or created a new one
+            // We need a currentCodeId.
+            // But wait, createNewCode() sets currentCodeId = null.
+            // If we autosave on new code, we should create it.
+            
+            showSaveStatus("等待保存...");
+            if (autoSaveTimer) clearTimeout(autoSaveTimer);
+            
+            autoSaveTimer = setTimeout(() => {
+                saveCode(true);
+            }, 1000); // 1s delay
+        }
+
+        function showSaveStatus(msg, timeout = 0, isError = false) {
+            const el = document.getElementById('save-status');
+            el.textContent = msg;
+            el.style.color = isError ? '#dc3545' : '#666';
+            
+            if (timeout > 0) {
+                setTimeout(() => {
+                    el.textContent = '';
+                }, timeout);
+            }
+        }
+
+        // --- Github Sync Logic ---
+        function showGithubModal() {
+            document.getElementById('github-modal').classList.remove('hidden');
+            loadGithubConfig();
+        }
+
+        function closeGithubModal() {
+            document.getElementById('github-modal').classList.add('hidden');
+        }
+
+        // --- Settings Logic ---
+        function showSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            const config = JSON.parse(localStorage.getItem('app_settings') || '{}');
+            if (config.theme) document.getElementById('setting-theme').value = config.theme;
+            if (config.fontSize) document.getElementById('setting-fontsize').value = config.fontSize;
+            if (config.fontFamily) document.getElementById('setting-fontfamily').value = config.fontFamily;
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const theme = document.getElementById('setting-theme').value;
+            const fontSize = document.getElementById('setting-fontsize').value;
+            const fontFamily = document.getElementById('setting-fontfamily').value;
+            
+            const config = { theme, fontSize, fontFamily };
+            localStorage.setItem('app_settings', JSON.stringify(config));
+            
+            applySettings(config);
+            closeSettingsModal();
+        }
+
+        function loadSettings() {
+            const config = JSON.parse(localStorage.getItem('app_settings') || '{}');
+            applySettings(config);
+        }
+
+        function applySettings(config) {
+            if (cmEditor) {
+                if (config.theme) cmEditor.setOption('theme', config.theme);
+            }
+            
+            // Apply CSS
+            const styleId = 'custom-editor-style';
+            let styleEl = document.getElementById(styleId);
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = styleId;
+                document.head.appendChild(styleEl);
+            }
+            
+            const fontSize = config.fontSize || 14;
+            const fontFamily = config.fontFamily || "'Fira Code', 'Consolas', monospace";
+            
+            styleEl.textContent = `
+                .CodeMirror {
+                    font-size: ${fontSize}px !important;
+                    font-family: ${fontFamily} !important;
+                }
+            `;
+            
+            // Re-refresh editor to fix layout
+            if (cmEditor) setTimeout(() => cmEditor.refresh(), 100);
+        }
+
+        function loadGithubConfig() {
+            const config = JSON.parse(localStorage.getItem('github_config') || '{}');
+            if (config.token) document.getElementById('gh-token').value = config.token;
+            if (config.owner) document.getElementById('gh-owner').value = config.owner;
+            if (config.repo) document.getElementById('gh-repo').value = config.repo;
+            if (config.branch) document.getElementById('gh-branch').value = config.branch;
+            if (config.path) document.getElementById('gh-path').value = config.path;
+        }
+
+        async function startGithubSync() {
+            let token = document.getElementById('gh-token').value.trim();
+            const owner = document.getElementById('gh-owner').value.trim();
+            const repo = document.getElementById('gh-repo').value.trim();
+            const branch = document.getElementById('gh-branch').value.trim();
+            const path = document.getElementById('gh-path').value.trim();
+
+            if (!token || !owner || !repo || !branch) {
+                alert('请填写完整配置信息');
+                return;
+            }
+
+            // Simple token correction: if pasted twice (length 80 and starts with ghp_)
+            if (token.length === 80 && token.startsWith('ghp_') && token.substring(0, 40) === token.substring(40)) {
+                token = token.substring(0, 40);
+                document.getElementById('gh-token').value = token; // Update UI
+                console.log("Auto-corrected duplicated token");
+            }
+
+            // Save config
+            localStorage.setItem('github_config', JSON.stringify({ token, owner, repo, branch, path }));
+
+            const btn = document.querySelector('#github-modal .btn-primary');
+            const originalText = btn.textContent;
+            btn.textContent = '同步中...';
+            btn.disabled = true;
+
+            try {
+                const res = await api('/api/github/sync', 'POST', { token, owner, repo, branch, path });
+                if (res.success) {
+                    closeGithubModal();
+                    setTimeout(() => alert('同步成功！'), 100);
+                } else {
+                    alert('同步失败: ' + (res.error || '未知错误'));
+                }
+            } catch (e) {
+                alert('同步出错: ' + e.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function setupResizer(resizerId, targetId) {
+            const resizer = document.getElementById(resizerId);
+            const target = document.getElementById(targetId);
+            
+            resizer.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                resizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                
+                const startX = e.clientX;
+                const startWidth = parseInt(getComputedStyle(target).width, 10);
+                
+                const onMouseMove = (e) => {
+                    const newWidth = startWidth + e.clientX - startX;
+                    if (newWidth > 100) { // Min width
+                        target.style.width = `${newWidth}px`;
+                    }
+                };
+                
+                const onMouseUp = () => {
+                    resizer.classList.remove('resizing');
+                    document.body.style.cursor = 'default';
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+
+        // --- API Calls ---
+        async function api(url, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+            const res = await fetch(url, options);
+            return res.json();
+        }
+
+        // --- Directory Logic ---
+        async function loadDirectories() {
+            directories = await api('/api/directories');
+            renderTree();
+        }
+
+        function renderTree() {
+            const rootEl = document.getElementById('tree-root');
+            rootEl.innerHTML = '';
+            
+            // Build hierarchy
+            const map = {};
+            directories.forEach(d => {
+                d.children = [];
+                map[d.id] = d;
+            });
+            
+            const roots = [];
+            directories.forEach(d => {
+                if (d.parent_id && map[d.parent_id]) {
+                    map[d.parent_id].children.push(d);
+                } else {
+                    roots.push(d);
+                }
+            });
+
+            function createNode(dir, level = 0) {
+                const div = document.createElement('div');
+                div.style.marginLeft = level === 0 ? '0px' : '10px'; // Less indentation for root items, but children need it
+                
+                const itemContainer = document.createElement('div');
+                itemContainer.style.display = 'flex';
+                itemContainer.style.alignItems = 'center';
+
+                // Toggle icon
+                const toggle = document.createElement('span');
+                toggle.className = 'tree-toggle';
+                const hasChildren = dir.children.length > 0;
+                const isCollapsed = collapsedDirs.has(dir.id);
+                
+                if (hasChildren) {
+                    toggle.textContent = isCollapsed ? '▶' : '▼';
+                    toggle.style.fontSize = '0.8em';
+                    toggle.onclick = (e) => {
+                        e.stopPropagation();
+                        toggleDir(dir.id);
+                    };
+                } else {
+                    toggle.innerHTML = '&nbsp;'; // Spacer
+                }
+                itemContainer.appendChild(toggle);
+
+                const item = document.createElement('div');
+                item.className = `tree-item ${currentDirId === dir.id ? 'active' : ''}`;
+                item.style.flex = '1';
+                item.textContent = `📁 ${dir.name}`;
+                item.onclick = () => selectDirectory(dir.id);
+                item.oncontextmenu = (e) => showDirContextMenu(e, dir.id);
+
+                // Drop target logic
+                item.ondragover = (e) => {
+                    e.preventDefault(); // Allow drop
+                    item.classList.add('drag-over');
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    // Auto expand on drag hover if collapsed
+                    if (hasChildren && collapsedDirs.has(dir.id)) {
+                         if (!dir.expandTimer) {
+                             dir.expandTimer = setTimeout(() => {
+                                 collapsedDirs.delete(dir.id);
+                                 renderTree();
+                             }, 600);
+                         }
+                    }
+                };
+                
+                item.ondragleave = (e) => {
+                    item.classList.remove('drag-over');
+                    if (dir.expandTimer) {
+                        clearTimeout(dir.expandTimer);
+                        dir.expandTimer = null;
+                    }
+                };
+                
+                item.ondrop = async (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    if (dir.expandTimer) {
+                        clearTimeout(dir.expandTimer);
+                        dir.expandTimer = null;
+                    }
+                    const codeId = e.dataTransfer.getData('codeId');
+                    const sourceDirId = e.dataTransfer.getData('sourceDirId');
+                    
+                    if (codeId && sourceDirId != dir.id) {
+                        // Perform move
+                        if (confirm(`确定要移动代码到 "${dir.name}" 吗？`)) {
+                            await moveCode(codeId, dir.id);
+                        }
+                    }
+                };
+                
+                itemContainer.appendChild(item);
+                div.appendChild(itemContainer);
+                
+                if (hasChildren && !isCollapsed) {
+                    const childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'tree-children';
+                    dir.children.forEach(child => {
+                        childrenContainer.appendChild(createNode(child, level + 1));
+                    });
+                    div.appendChild(childrenContainer);
+                }
+                return div;
+            }
+
+            roots.forEach(r => rootEl.appendChild(createNode(r)));
+        }
+
+        function toggleDir(id) {
+            if (collapsedDirs.has(id)) {
+                collapsedDirs.delete(id);
+            } else {
+                collapsedDirs.add(id);
+            }
+            renderTree();
+        }
+
+        function selectDirectory(id) {
+            currentDirId = id;
+            renderTree(); // Update active state
+            loadCodes(id);
+        }
+
+        async function moveCode(codeId, targetDirId) {
+            // We need to get current code details first to not overwrite other fields
+            // Or we can just update directory_id if backend supports partial update, 
+            // but our backend update_code expects all fields.
+            // Let's fetch it first.
+            const code = await api(`/api/codes/${codeId}`);
+            if (code.error) {
+                alert("移动失败: 无法获取原代码信息");
+                return;
+            }
+            
+            const res = await api(`/api/codes/${codeId}`, 'PUT', {
+                filename: code.filename,
+                content: code.content,
+                note: code.note,
+                is_favorite: code.is_favorite,
+                is_pinned: code.is_pinned,
+                directory_id: targetDirId,
+                tags: code.tags
+            });
+            
+            if (res.success) {
+                // Refresh list
+                if (currentDirId) loadCodes(currentDirId);
+                else if (document.querySelector('.file-list-panel .panel-header').textContent.includes('收藏')) loadFavorites();
+                else performSearch();
+            } else {
+                alert("移动失败: " + res.error);
+            }
+        }
+
+        function showAddDirModal() {
+            const name = prompt("输入新目录名称:");
+            if (name) {
+                addDirectory(name, null);
+            }
+        }
+
+        async function addDirectory(name, parentId) {
+            await api('/api/directories', 'POST', { name, parent_id: parentId });
+            loadDirectories();
+        }
+
+        function showDirContextMenu(e, id) {
+            e.preventDefault();
+            contextTargetDirId = id;
+            const menu = document.getElementById('dir-context-menu');
+            menu.style.left = `${e.pageX}px`;
+            menu.style.top = `${e.pageY}px`;
+            menu.classList.remove('hidden');
+        }
+
+        function contextAddSubDir() {
+            const name = prompt("输入子目录名称:");
+            if (name) addDirectory(name, contextTargetDirId);
+            document.getElementById('dir-context-menu').classList.add('hidden');
+        }
+
+        async function contextRenameDir() {
+            const name = prompt("输入新名称:");
+            if (name) {
+                await api(`/api/directories/${contextTargetDirId}`, 'PUT', { name });
+                loadDirectories();
+            }
+            document.getElementById('dir-context-menu').classList.add('hidden');
+        }
+
+        async function contextDeleteDir() {
+            if (confirm("确定要删除该目录及其下的所有内容吗？")) {
+                await api(`/api/directories/${contextTargetDirId}`, 'DELETE');
+                loadDirectories();
+                // If deleted current dir, reset
+                if (currentDirId === contextTargetDirId) {
+                    currentDirId = null;
+                    document.getElementById('file-list-container').innerHTML = '';
+                    document.getElementById('editor-container').classList.add('hidden');
+                    document.getElementById('empty-state').classList.remove('hidden');
+                }
+            }
+            document.getElementById('dir-context-menu').classList.add('hidden');
+        }
+
+        // --- Code List Logic ---
+        async function loadCodes(dirId) {
+            const codes = await api(`/api/directories/${dirId}/codes`);
+            renderFileList(codes);
+        }
+
+        async function loadFavorites() {
+            currentDirId = null; // Deselect directory
+            renderTree();
+            const codes = await api('/api/favorites');
+            renderFileList(codes, true);
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('search-input').value;
+            if (!query) return;
+            currentDirId = null;
+            renderTree();
+            const codes = await api(`/api/search?q=${encodeURIComponent(query)}`);
+            renderFileList(codes, false, true);
+        }
+
+        function renderFileList(codes, isFavorites = false, isSearch = false) {
+            const container = document.getElementById('file-list-container');
+            container.innerHTML = '';
+            
+            const header = document.querySelector('.file-list-panel .panel-header');
+            if (isFavorites) header.innerHTML = '⭐ 我的收藏';
+            else if (isSearch) header.innerHTML = '🔍 搜索结果';
+            else header.innerHTML = '文件列表 <button class="btn btn-sm btn-success" onclick="createNewCode()">+ 新建代码</button>';
+
+            if (codes.length === 0) {
+                container.innerHTML = '<div style="padding:20px; color:#999; text-align:center;">无文件</div>';
+                return;
+            }
+
+            codes.forEach(code => {
+                const item = document.createElement('div');
+                item.className = `file-item ${currentCodeId === code.id ? 'active' : ''}`;
+                item.onclick = () => selectCode(code);
+                
+                // Drag & Drop properties
+                item.draggable = true;
+                item.ondragstart = (e) => {
+                    e.dataTransfer.setData('codeId', code.id);
+                    e.dataTransfer.setData('sourceDirId', code.directory_id);
+                    e.dataTransfer.effectAllowed = 'move';
+                };
+                
+                // Process tags if any
+                let tagsHtml = '';
+                if (code.tags && code.tags.length > 0) {
+                    tagsHtml = code.tags.map(t => `<span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7em; margin-right:4px;">${t}</span>`).join('');
+                }
+                
+                item.innerHTML = `
+                    <div class="title">
+                        ${code.is_pinned ? '📌 ' : ''}${code.filename}
+                    </div>
+                    <div class="meta">
+                        <div>
+                            ${code.is_favorite ? '⭐' : ''} 
+                            ${tagsHtml}
+                        </div>
+                        <span style="font-size: 0.7em;">${new Date(code.created_at).toLocaleDateString()}</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function selectCode(code) {
+            currentCodeId = code.id;
+            // Re-render list to show active state (simple way)
+            const items = document.querySelectorAll('.file-item');
+            items.forEach(el => el.classList.remove('active'));
+            // In a real app we'd bind data better, here we just trust the click source or re-render
+            // Let's just update the editor
+            
+            document.getElementById('empty-state').classList.add('hidden');
+            const editor = document.getElementById('editor-container');
+            editor.classList.remove('hidden');
+
+            document.getElementById('edit-id').value = code.id;
+            document.getElementById('edit-dir-id').value = code.directory_id;
+            document.getElementById('edit-filename').value = code.filename;
+            
+            // Set CodeMirror content
+            if (cmEditor) {
+                cmEditor.setValue(code.content || '');
+                // Try to refresh to avoid rendering issues
+                setTimeout(() => cmEditor.refresh(), 10);
+            } else {
+                document.getElementById('edit-content').value = code.content || '';
+            }
+            
+            document.getElementById('edit-note').value = code.note || '';
+            document.getElementById('edit-favorite').checked = code.is_favorite === 1;
+            document.getElementById('edit-pinned').checked = code.is_pinned === 1;
+            
+            // Tags
+            currentTags = code.tags || [];
+            renderTags();
+            document.getElementById('tag-input').value = '';
+            
+            detectLanguage();
+        }
+
+        function createNewCode() {
+            if (!currentDirId) {
+                alert("请先选择一个目录");
+                return;
+            }
+            
+            currentCodeId = null;
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('editor-container').classList.remove('hidden');
+
+            document.getElementById('edit-id').value = '';
+            document.getElementById('edit-dir-id').value = currentDirId;
+            document.getElementById('edit-filename').value = 'New Code';
+            
+            if (cmEditor) {
+                cmEditor.setValue('');
+                setTimeout(() => cmEditor.refresh(), 10);
+            } else {
+                document.getElementById('edit-content').value = '';
+            }
+            
+            document.getElementById('edit-note').value = '';
+            document.getElementById('edit-favorite').checked = false;
+            document.getElementById('edit-pinned').checked = false;
+            
+            // Clear tags
+            currentTags = [];
+            renderTags();
+            document.getElementById('tag-input').value = '';
+            
+            // Focus filename
+            document.getElementById('edit-filename').focus();
+            detectLanguage();
+        }
+
+        // --- Editor Logic ---
+        function detectLanguage() {
+            const filename = document.getElementById('edit-filename').value;
+            let mode = "javascript"; // default
+            
+            if (filename.endsWith('.py')) mode = "python";
+            else if (filename.endsWith('.html')) mode = "htmlmixed";
+            else if (filename.endsWith('.css')) mode = "css";
+            else if (filename.endsWith('.sql')) mode = "sql";
+            else if (filename.endsWith('.md')) mode = "markdown";
+            else if (filename.endsWith('.java') || filename.endsWith('.c') || filename.endsWith('.cpp')) mode = "clike";
+            else if (filename.endsWith('.sh') || filename.endsWith('.bat')) mode = "shell";
+            else if (filename.endsWith('.xml')) mode = "xml";
+            
+            if (cmEditor) cmEditor.setOption("mode", mode);
+        }
+
+        async function saveCode(isAuto = false) {
+            const id = document.getElementById('edit-id').value;
+            const dirId = document.getElementById('edit-dir-id').value;
+            const filename = document.getElementById('edit-filename').value;
+            // Get content from CodeMirror
+            const content = cmEditor ? cmEditor.getValue() : document.getElementById('edit-content').value;
+            const note = document.getElementById('edit-note').value;
+            const isFavorite = document.getElementById('edit-favorite').checked ? 1 : 0;
+            const isPinned = document.getElementById('edit-pinned').checked ? 1 : 0;
+            
+            // Handle tags if user typed something but didn't press enter
+            addTagFromInput();
+            const tags = currentTags;
+
+            if (!filename) {
+                if (!isAuto) alert("文件名不能为空");
+                return;
+            }
+
+            if (isAuto) showSaveStatus("正在保存...");
+
+            if (id) {
+                // Update
+                const res = await api(`/api/codes/${id}`, 'PUT', {
+                    filename, content, note, is_favorite: isFavorite, is_pinned: isPinned, directory_id: dirId, tags
+                });
+                if (res.success) {
+                    if (!isAuto) alert("保存成功");
+                    else showSaveStatus("已自动保存", 2000);
+
+                    // Refresh list if we are in directory view
+                    // To avoid flickering during auto-save, we might want to be careful about re-rendering list
+                    // But if we don't, changes like filename won't reflect.
+                    // Let's re-render for now.
+                    if (currentDirId) loadCodes(currentDirId);
+                    else if (document.querySelector('.file-list-panel .panel-header').textContent.includes('收藏')) loadFavorites();
+                    else performSearch();
+                } else {
+                    if (!isAuto) alert("保存失败: " + res.error);
+                    else showSaveStatus("保存失败", 3000, true);
+                }
+            } else {
+                // Create
+                const res = await api('/api/codes', 'POST', {
+                    directory_id: dirId,
+                    filename, content, note, is_favorite: isFavorite, is_pinned: isPinned, tags
+                });
+                if (res.id) {
+                    document.getElementById('edit-id').value = res.id;
+                    if (!isAuto) alert("创建成功");
+                    else showSaveStatus("已创建并保存", 2000);
+                    
+                    currentCodeId = res.id;
+                    loadCodes(dirId);
+                } else {
+                    if (!isAuto) alert("创建失败: " + res.error);
+                    else showSaveStatus("创建失败", 3000, true);
+                }
+            }
+        }
+
+        async function deleteCode() {
+            const id = document.getElementById('edit-id').value;
+            if (!id) return; // Unsaved new code
+            
+            if (confirm("确定要删除此代码吗？")) {
+                await api(`/api/codes/${id}`, 'DELETE');
+                document.getElementById('editor-container').classList.add('hidden');
+                document.getElementById('empty-state').classList.remove('hidden');
+                
+                if (currentDirId) loadCodes(currentDirId);
+                else if (document.querySelector('.file-list-panel .panel-header').textContent.includes('收藏')) loadFavorites();
+                else performSearch();
+            }
+        }
+
+    </script>
+</body>
+</html>
